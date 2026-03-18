@@ -39,9 +39,52 @@ export default defineSchema({
     avatarStorageId: v.optional(v.id("_storage")),
     lastSeenAt: v.optional(v.number()),
     isOnline: v.optional(v.boolean()),
+    // Chat access: only users who register directly get chat.
+    // Users from "Share Game" link get game-only mode.
+    chatEnabled: v.optional(v.boolean()),
   })
     .index("by_friendCode", ["friendCode"])
     .index("email", ["email"]),
+
+  // 1v1 challenge matches
+  challenges: defineTable({
+    challengerId: v.id("users"),
+    opponentId: v.id("users"),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("active"),
+      v.literal("completed"),
+      v.literal("declined")
+    ),
+    difficulty: v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
+    // Both players get the same puzzle
+    puzzle: v.string(), // JSON serialized 9x9 grid
+    solution: v.string(), // JSON serialized solution
+    // Results
+    challengerTime: v.optional(v.number()),
+    challengerErrors: v.optional(v.number()),
+    opponentTime: v.optional(v.number()),
+    opponentErrors: v.optional(v.number()),
+    winnerId: v.optional(v.id("users")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_challenger", ["challengerId", "status"])
+    .index("by_opponent", ["opponentId", "status"])
+    .index("by_status", ["status"]),
+
+  // Leaderboard scores
+  scores: defineTable({
+    userId: v.id("users"),
+    difficulty: v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
+    time: v.number(), // seconds
+    errors: v.number(),
+    // Lower = better: time + errors * 30s penalty
+    score: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_difficulty_score", ["difficulty", "score"])
+    .index("by_user", ["userId"]),
 
   conversations: defineTable({
     type: conversationTypeValidator,

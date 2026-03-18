@@ -21,6 +21,7 @@ export const me = query({
 export const setupProfile = mutation({
   args: {
     name: v.string(),
+    chatEnabled: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
@@ -44,6 +45,7 @@ export const setupProfile = mutation({
       friendCode,
       isOnline: true,
       lastSeenAt: Date.now(),
+      chatEnabled: args.chatEnabled ?? true,
     });
   },
 });

@@ -125,11 +125,14 @@ export function AppShell() {
 
   // Profile setup (first-time user)
   if (!user.name) {
-    return <SetupProfileDialog />;
+    // Check URL for game-only invite
+    const isGameOnly = new URLSearchParams(window.location.search).has("game");
+    return <SetupProfileDialog gameOnly={isGameOnly} />;
   }
 
-  // Sequence setup (no secret sequence set)
-  if (!user.secretSequenceHash) {
+  // Sequence setup - only for chat-enabled users
+  const hasChatAccess = user.chatEnabled === true;
+  if (hasChatAccess && !user.secretSequenceHash) {
     return <SetupSequenceDialog />;
   }
 
@@ -141,11 +144,11 @@ export function AppShell() {
 
       {mode === "sudoku" && (
         <div className="mode-enter">
-          <SudokuGame onEnterChat={enterChat} />
+          <SudokuGame onEnterChat={hasChatAccess ? enterChat : undefined} />
         </div>
       )}
 
-      {mode === "chat" && (
+      {mode === "chat" && hasChatAccess && (
         <div className="mode-enter">
           <ExitPauseContext.Provider value={{ pauseExit, resumeExit }}>
             <ChatLayout />

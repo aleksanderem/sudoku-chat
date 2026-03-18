@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-export function SetupProfileDialog() {
+export function SetupProfileDialog({ gameOnly = false }: { gameOnly?: boolean }) {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const setupProfile = useMutation(api.users.setupProfile);
@@ -18,7 +18,7 @@ export function SetupProfileDialog() {
     if (!name.trim()) return;
     setLoading(true);
     try {
-      await setupProfile({ name: name.trim() });
+      await setupProfile({ name: name.trim(), chatEnabled: !gameOnly });
       toast.success("Profile created!");
     } catch {
       toast.error("Failed to set up profile");

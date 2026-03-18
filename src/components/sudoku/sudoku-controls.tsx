@@ -6,7 +6,7 @@ import { hashSequence } from "@/lib/crypto";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Undo2, Eraser, Lightbulb, PenLine, RotateCcw, LogOut, KeyRound } from "lucide-react";
+import { Undo2, Eraser, Lightbulb, PenLine, RotateCcw, LogOut, KeyRound, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Difficulty } from "@/lib/sudoku/types";
 
@@ -160,14 +160,24 @@ export function SudokuControls({
               </div>
             </div>
           ) : (
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setShowResetForm(true)}>
-                <KeyRound className="h-3.5 w-3.5 mr-1" />
-                Reset Code
-              </Button>
-              <Button variant="outline" size="sm" className="flex-1 text-xs text-destructive" onClick={() => void signOut()}>
-                <LogOut className="h-3.5 w-3.5 mr-1" />
-                Log Out
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setShowResetForm(true)}>
+                  <KeyRound className="h-3.5 w-3.5 mr-1" />
+                  Reset Code
+                </Button>
+                <Button variant="outline" size="sm" className="flex-1 text-xs text-destructive" onClick={() => void signOut()}>
+                  <LogOut className="h-3.5 w-3.5 mr-1" />
+                  Log Out
+                </Button>
+              </div>
+              <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => {
+                const url = `${window.location.origin}/play?game`;
+                navigator.clipboard.writeText(url);
+                toast.success("Game link copied! Share it with friends.");
+              }}>
+                <Share2 className="h-3.5 w-3.5 mr-1" />
+                Share Game (no chat)
               </Button>
             </div>
           )}

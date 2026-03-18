@@ -6,34 +6,32 @@ import { SudokuBoard } from "./sudoku-board";
 import { SudokuControls } from "./sudoku-controls";
 import { SudokuHeader } from "./sudoku-header";
 import { GameCompleteDialog } from "./game-complete-dialog";
+import { MultiplayerPanel } from "./multiplayer-panel";
 
 interface SudokuGameProps {
-  onEnterChat: () => void;
+  onEnterChat?: () => void;
 }
 
 export function SudokuGame({ onEnterChat }: SudokuGameProps) {
   const user = useQuery(api.users.me);
   const game = useSudokuGame();
-  const sequenceLength = user?.secretSequenceLength ?? 0;
+  const sequenceLength = onEnterChat ? (user?.secretSequenceLength ?? 0) : 0;
 
   const { onCellEntry } = useSequenceDetector({
     sequenceLength,
     board: game.board,
     eraseCells: game.eraseCells,
-    onMatch: onEnterChat,
+    onMatch: onEnterChat ?? (() => {}),
   });
 
   function handleCellValueChange(row: number, col: number, value: number) {
     if (game.notesMode && value !== 0) {
       game.toggleNote(row, col, value);
     } else {
-      // For the sequence detector, 0 is a valid digit (e.g. code "1007").
-      // In Sudoku, value=0 means "erase". We tell the detector about
-      // every digit (including 0) but the board treats 0 as empty.
-      onCellEntry(row, col, value);
+      if (onEnterChat) {
+        onCellEntry(row, col, value);
+      }
       game.setCellValue(row, col, value);
-
-      // Auto-advance after entering any digit (0 = erase, still advance)
       advanceToNextEmpty(row, col);
     }
   }
@@ -95,6 +93,8 @@ export function SudokuGame({ onEnterChat }: SudokuGameProps) {
           difficulty={game.difficulty}
         />
       </div>
+
+      <MultiplayerPanel />
 
       {game.isComplete && (
         <GameCompleteDialog

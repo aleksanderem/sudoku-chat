@@ -10,11 +10,13 @@
 
 import type * as _helpers_auth from "../_helpers/auth.js";
 import type * as auth from "../auth.js";
+import type * as challenges from "../challenges.js";
 import type * as cleanup from "../cleanup.js";
 import type * as conversations from "../conversations.js";
 import type * as crons from "../crons.js";
 import type * as files from "../files.js";
 import type * as http from "../http.js";
+import type * as leaderboard from "../leaderboard.js";
 import type * as messages from "../messages.js";
 import type * as notifications from "../notifications.js";
 import type * as push from "../push.js";
@@ -32,11 +34,13 @@ import type {
 declare const fullApi: ApiFromModules<{
   "_helpers/auth": typeof _helpers_auth;
   auth: typeof auth;
+  challenges: typeof challenges;
   cleanup: typeof cleanup;
   conversations: typeof conversations;
   crons: typeof crons;
   files: typeof files;
   http: typeof http;
+  leaderboard: typeof leaderboard;
   messages: typeof messages;
   notifications: typeof notifications;
   push: typeof push;
