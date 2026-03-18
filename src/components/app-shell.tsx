@@ -130,8 +130,8 @@ export function AppShell() {
     return <SetupProfileDialog gameOnly={isGameOnly} />;
   }
 
-  // Sequence setup - only for chat-enabled users
-  const hasChatAccess = user.chatEnabled === true;
+  // Chat access: true by default (existing users), false only if explicitly set to false
+  const hasChatAccess = user.chatEnabled !== false;
   if (hasChatAccess && !user.secretSequenceHash) {
     return <SetupSequenceDialog />;
   }
