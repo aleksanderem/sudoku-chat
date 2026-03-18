@@ -1,0 +1,83 @@
+import { useQuery } from "convex/react";
+import { api } from "@cvx/_generated/api";
+import { useSudokuGame } from "@/hooks/use-sudoku-game";
+import { useSequenceDetector } from "@/hooks/use-sequence-detector";
+import { SudokuBoard } from "./sudoku-board";
+import { SudokuControls } from "./sudoku-controls";
+import { SudokuHeader } from "./sudoku-header";
+import { GameCompleteDialog } from "./game-complete-dialog";
+
+interface SudokuGameProps {
+  onEnterChat: () => void;
+}
+
+export function SudokuGame({ onEnterChat }: SudokuGameProps) {
+  const user = useQuery(api.users.me);
+  const game = useSudokuGame();
+  const sequenceLength = user?.secretSequenceLength ?? 0;
+
+  const { onCellEntry } = useSequenceDetector({
+    sequenceLength,
+    getEmptyCellsInOrder: game.getEmptyCellsInOrder,
+    eraseCells: game.eraseCells,
+    onMatch: onEnterChat,
+  });
+
+  function handleCellValueChange(row: number, col: number, value: number) {
+    if (game.notesMode && value !== 0) {
+      game.toggleNote(row, col, value);
+    } else {
+      game.setCellValue(row, col, value);
+      if (value !== 0) {
+        onCellEntry(row, col, value);
+      }
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col items-center px-4 py-6">
+      <SudokuHeader
+        timer={game.timer}
+        difficulty={game.difficulty}
+        isRunning={game.isRunning}
+      />
+
+      <div className="mt-6 w-full max-w-md">
+        <SudokuBoard
+          board={game.board}
+          selectedCell={game.selectedCell}
+          onSelectCell={game.setSelectedCell}
+          onCellValueChange={handleCellValueChange}
+        />
+      </div>
+
+      <div className="mt-6 w-full max-w-md">
+        <SudokuControls
+          selectedCell={game.selectedCell}
+          notesMode={game.notesMode}
+          hintsRemaining={game.hintsRemaining}
+          canUndo={game.history.length > 0}
+          onNumberPress={(n) => {
+            if (game.selectedCell) {
+              handleCellValueChange(game.selectedCell[0], game.selectedCell[1], n);
+            }
+          }}
+          onNotesToggle={() => game.setNotesMode(!game.notesMode)}
+          onUndo={game.undo}
+          onErase={game.erase}
+          onHint={game.useHint}
+          onNewGame={game.newGame}
+          difficulty={game.difficulty}
+        />
+      </div>
+
+      {game.isComplete && (
+        <GameCompleteDialog
+          timer={game.timer}
+          difficulty={game.difficulty}
+          onNewGame={game.newGame}
+        />
+      )}
+    </div>
+  );
+}
