@@ -18,7 +18,7 @@ export function SudokuGame({ onEnterChat }: SudokuGameProps) {
 
   const { onCellEntry } = useSequenceDetector({
     sequenceLength,
-    getEmptyCellsInOrder: game.getEmptyCellsInOrder,
+    board: game.board,
     eraseCells: game.eraseCells,
     onMatch: onEnterChat,
   });
@@ -27,10 +27,12 @@ export function SudokuGame({ onEnterChat }: SudokuGameProps) {
     if (game.notesMode && value !== 0) {
       game.toggleNote(row, col, value);
     } else {
-      game.setCellValue(row, col, value);
+      // Call onCellEntry BEFORE setCellValue so the detector
+      // sees the board BEFORE this cell is filled
       if (value !== 0) {
         onCellEntry(row, col, value);
       }
+      game.setCellValue(row, col, value);
     }
   }
 
