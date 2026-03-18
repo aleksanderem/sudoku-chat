@@ -104,6 +104,11 @@
   }
 }
 
+/* Prevent iOS Safari zoom on input focus (requires font-size >= 16px) */
+input, textarea, select {
+  font-size: 16px !important;
+}
+
 button {
   cursor: pointer;
   @apply transition duration-150 active:scale-[0.98];
