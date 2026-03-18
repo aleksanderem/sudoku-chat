@@ -22,6 +22,7 @@ import type * as notifications from "../notifications.js";
 import type * as push from "../push.js";
 import type * as pushActions from "../pushActions.js";
 import type * as reactions from "../reactions.js";
+import type * as seed from "../seed.js";
 import type * as typing from "../typing.js";
 import type * as users from "../users.js";
 
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   push: typeof push;
   pushActions: typeof pushActions;
   reactions: typeof reactions;
+  seed: typeof seed;
   typing: typeof typing;
   users: typeof users;
 }>;

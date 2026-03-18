@@ -42,7 +42,7 @@ export function MultiplayerPanel() {
   );
 }
 
-function ChallengeTab() {
+export function ChallengeTab() {
   const [friendCode, setFriendCode] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [loading, setLoading] = useState(false);
@@ -172,7 +172,7 @@ function ChallengeTab() {
   );
 }
 
-function LeaderboardTab() {
+export function LeaderboardTab() {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const topScores = useQuery(api.leaderboard.getTopScores, { difficulty, limit: 10 });
   const myBest = useQuery(api.leaderboard.getMyBest, { difficulty });
