@@ -44,7 +44,7 @@ export function useSequenceDetector({
 
   const onCellEntry = useCallback(
     async (row: number, col: number, digit: number) => {
-      if (sequenceLength === 0 || digit === 0) {
+      if (sequenceLength === 0 || digit < 0) {
         bufferRef.current = [];
         targetCellsRef.current = [];
         return;

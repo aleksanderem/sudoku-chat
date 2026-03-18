@@ -27,17 +27,14 @@ export function SudokuGame({ onEnterChat }: SudokuGameProps) {
     if (game.notesMode && value !== 0) {
       game.toggleNote(row, col, value);
     } else {
-      // Call onCellEntry BEFORE setCellValue so the detector
-      // sees the board BEFORE this cell is filled
-      if (value !== 0) {
-        onCellEntry(row, col, value);
-      }
+      // For the sequence detector, 0 is a valid digit (e.g. code "1007").
+      // In Sudoku, value=0 means "erase". We tell the detector about
+      // every digit (including 0) but the board treats 0 as empty.
+      onCellEntry(row, col, value);
       game.setCellValue(row, col, value);
 
-      // Auto-advance to next empty cell after entering a digit
-      if (value !== 0) {
-        advanceToNextEmpty(row, col);
-      }
+      // Auto-advance after entering any digit (0 = erase, still advance)
+      advanceToNextEmpty(row, col);
     }
   }
 
