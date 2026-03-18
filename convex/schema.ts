@@ -50,6 +50,8 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
     lastMessageAt: v.optional(v.number()),
+    // Auto-delete TTL in ms. Default 12h (43200000), max 12h. 0 = use default.
+    messageTtlMs: v.optional(v.number()),
   }).index("by_lastMessage", ["lastMessageAt"]),
 
   conversationMembers: defineTable({
@@ -76,10 +78,16 @@ export default defineSchema({
     replyToId: v.optional(v.id("messages")),
     isEdited: v.boolean(),
     isDeleted: v.boolean(),
+    // Auto-delete: when this message should be purged
+    expiresAt: v.optional(v.number()),
+    // View-limited media: how many times the image can be opened
+    maxViews: v.optional(v.number()),
+    viewCount: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_conversation", ["conversationId", "createdAt"])
+    .index("by_expiry", ["expiresAt"])
     .searchIndex("search_messages", {
       searchField: "content",
       filterFields: ["conversationId"],

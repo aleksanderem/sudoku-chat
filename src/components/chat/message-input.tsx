@@ -3,8 +3,9 @@ import { useMutation } from "convex/react";
 import { api } from "@cvx/_generated/api";
 import type { Id } from "@cvx/_generated/dataModel";
 import { useExitPause } from "@/hooks/use-exit-pause";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Send, Paperclip, Image, X, Loader2 } from "lucide-react";
+import { Send, Paperclip, Image, X, Loader2, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 interface MessageInputProps {
@@ -19,6 +20,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     type: string;
     storageId: Id<"_storage">;
   } | null>(null);
+  const [maxViews, setMaxViews] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { pauseExit, resumeExit } = useExitPause();
@@ -41,8 +43,10 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           fileStorageId: pendingFile.storageId,
           fileName: pendingFile.name,
           mimeType: pendingFile.type,
+          ...(isImage && maxViews !== null ? { maxViews } : {}),
         });
         setPendingFile(null);
+        setMaxViews(null);
       } else {
         await sendMessage({
           conversationId,
@@ -113,21 +117,42 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     <div className="border-t p-3">
       {/* Pending file preview */}
       {pendingFile && (
-        <div className="flex items-center gap-2 mb-2 rounded-lg bg-muted px-3 py-2 text-sm">
-          {pendingFile.type.startsWith("image/") ? (
-            <Image className="h-4 w-4 text-primary" />
-          ) : (
-            <Paperclip className="h-4 w-4 text-primary" />
+        <div className="mb-2 rounded-lg bg-muted px-3 py-2 text-sm space-y-2">
+          <div className="flex items-center gap-2">
+            {pendingFile.type.startsWith("image/") ? (
+              <Image className="h-4 w-4 text-primary" />
+            ) : (
+              <Paperclip className="h-4 w-4 text-primary" />
+            )}
+            <span className="truncate flex-1">{pendingFile.name}</span>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setPendingFile(null); setMaxViews(null); }}>
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+
+          {/* View limit selector - only for images */}
+          {pendingFile.type.startsWith("image/") && (
+            <div className="flex items-center gap-2">
+              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Views:</span>
+              <div className="flex gap-1">
+                {[null, 1, 2, 3, 5].map((v) => (
+                  <button
+                    key={v ?? "unlimited"}
+                    onClick={() => setMaxViews(v)}
+                    className={cn(
+                      "px-2 py-0.5 rounded text-xs transition-colors",
+                      maxViews === v
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background hover:bg-accent"
+                    )}
+                  >
+                    {v === null ? "∞" : v}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
-          <span className="truncate flex-1">{pendingFile.name}</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() => setPendingFile(null)}
-          >
-            <X className="h-3 w-3" />
-          </Button>
         </div>
       )}
 

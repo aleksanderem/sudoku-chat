@@ -84,9 +84,10 @@ export const list = query({
           }
         }
 
-        // Get file URL if applicable
+        // Get file URL if applicable (NOT for view-limited media)
         let fileUrl = null;
-        if (msg.fileStorageId) {
+        const isViewLimited = msg.maxViews !== undefined && msg.maxViews > 0;
+        if (msg.fileStorageId && !isViewLimited) {
           fileUrl = await ctx.storage.getUrl(msg.fileStorageId);
         }
 
@@ -105,6 +106,9 @@ export const list = query({
   },
 });
 
+const MAX_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+const DEFAULT_TTL_MS = MAX_TTL_MS;
+
 export const send = mutation({
   args: {
     conversationId: v.id("conversations"),
@@ -115,6 +119,7 @@ export const send = mutation({
     fileSize: v.optional(v.number()),
     mimeType: v.optional(v.string()),
     replyToId: v.optional(v.id("messages")),
+    maxViews: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
@@ -132,6 +137,11 @@ export const send = mutation({
       throw new Error("Not a member");
     }
 
+    // Calculate expiry based on conversation TTL
+    const conversation = await ctx.db.get(args.conversationId);
+    const ttl = Math.min(conversation?.messageTtlMs || DEFAULT_TTL_MS, MAX_TTL_MS);
+    const expiresAt = now + ttl;
+
     const messageId = await ctx.db.insert("messages", {
       conversationId: args.conversationId,
       senderId: user._id,
@@ -144,6 +154,9 @@ export const send = mutation({
       replyToId: args.replyToId,
       isEdited: false,
       isDeleted: false,
+      expiresAt,
+      maxViews: args.maxViews,
+      viewCount: args.maxViews !== undefined ? 0 : undefined,
       createdAt: now,
       updatedAt: now,
     });
@@ -158,7 +171,6 @@ export const send = mutation({
     await ctx.db.patch(membership._id, { lastReadAt: now });
 
     // Create notifications for other members
-    const conversation = await ctx.db.get(args.conversationId);
     const members = await ctx.db
       .query("conversationMembers")
       .withIndex("by_conversation", (q) =>
@@ -289,5 +301,54 @@ export const search = query({
       .take(20);
 
     return results.filter((m) => !m.isDeleted);
+  },
+});
+
+// Open a view-limited image. Increments viewCount. Returns the file URL
+// only if views remain, otherwise returns null.
+export const openViewLimited = mutation({
+  args: { messageId: v.id("messages") },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const msg = await ctx.db.get(args.messageId);
+    if (!msg || msg.isDeleted) return null;
+
+    // Verify user is in the conversation
+    const membership = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_convAndUser", (q) =>
+        q.eq("conversationId", msg.conversationId).eq("userId", user._id)
+      )
+      .unique();
+    if (!membership || membership.isRemoved) return null;
+
+    if (msg.maxViews === undefined || msg.viewCount === undefined) {
+      // Not view-limited, return URL directly
+      return msg.fileStorageId ? await ctx.storage.getUrl(msg.fileStorageId) : null;
+    }
+
+    if (msg.viewCount >= msg.maxViews) {
+      // All views used up
+      return null;
+    }
+
+    // Increment view count
+    const newCount = msg.viewCount + 1;
+    await ctx.db.patch(args.messageId, { viewCount: newCount });
+
+    // If this was the last view, delete the file from storage
+    if (newCount >= msg.maxViews && msg.fileStorageId) {
+      await ctx.db.patch(args.messageId, {
+        fileStorageId: undefined,
+        content: "View-limited photo expired",
+      });
+      try {
+        await ctx.storage.delete(msg.fileStorageId);
+      } catch {
+        // Already deleted
+      }
+    }
+
+    return msg.fileStorageId ? await ctx.storage.getUrl(msg.fileStorageId) : null;
   },
 });

@@ -352,3 +352,31 @@ export const leave = mutation({
     });
   },
 });
+
+const MAX_TTL_MS = 12 * 60 * 60 * 1000;
+
+export const setMessageTtl = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    ttlMs: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const membership = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_convAndUser", (q) =>
+        q.eq("conversationId", args.conversationId).eq("userId", user._id)
+      )
+      .unique();
+
+    if (!membership || membership.isRemoved) throw new Error("Not a member");
+
+    // Clamp to max 12h
+    const ttl = Math.min(Math.max(args.ttlMs, 60_000), MAX_TTL_MS);
+
+    await ctx.db.patch(args.conversationId, {
+      messageTtlMs: ttl,
+      updatedAt: Date.now(),
+    });
+  },
+});
