@@ -7,6 +7,7 @@ import { SudokuGame } from "@/components/sudoku/sudoku-game";
 import { SetupSequenceDialog } from "@/components/sudoku/setup-sequence-dialog";
 import { SetupProfileDialog } from "@/components/sudoku/setup-profile-dialog";
 import { ChatLayout } from "@/components/chat/chat-layout";
+import { AuthScreen } from "@/components/auth/auth-screen";
 import { requestNotificationPermission, showBrowserNotification } from "@/lib/notifications";
 
 type AppMode = "sudoku" | "chat";
@@ -91,13 +92,18 @@ export function AppShell() {
     );
   }
 
+  // Not authenticated - show login
+  if (user === null) {
+    return <AuthScreen />;
+  }
+
   // Profile setup (first-time user)
-  if (user && !user.name) {
+  if (!user.name) {
     return <SetupProfileDialog />;
   }
 
   // Sequence setup (no secret sequence set)
-  if (user && !user.secretSequenceHash) {
+  if (!user.secretSequenceHash) {
     return <SetupSequenceDialog />;
   }
 
