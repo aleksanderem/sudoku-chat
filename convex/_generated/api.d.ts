@@ -15,6 +15,8 @@ import type * as files from "../files.js";
 import type * as http from "../http.js";
 import type * as messages from "../messages.js";
 import type * as notifications from "../notifications.js";
+import type * as push from "../push.js";
+import type * as pushActions from "../pushActions.js";
 import type * as reactions from "../reactions.js";
 import type * as typing from "../typing.js";
 import type * as users from "../users.js";
@@ -33,6 +35,8 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   messages: typeof messages;
   notifications: typeof notifications;
+  push: typeof push;
+  pushActions: typeof pushActions;
   reactions: typeof reactions;
   typing: typeof typing;
   users: typeof users;

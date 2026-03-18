@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireUser } from "./_helpers/auth";
 import { messageTypeValidator } from "./schema";
 
@@ -184,6 +185,13 @@ export const send = mutation({
         realBody: args.type === "text" ? args.content.slice(0, 100) : `Sent a ${args.type}`,
         isRead: false,
         createdAt: now,
+      });
+
+      // Schedule push notification (runs as Node.js action)
+      await ctx.scheduler.runAfter(0, internal.pushActions.sendPush, {
+        userId: member.userId,
+        title: disguise.title,
+        body: disguise.body,
       });
     }
 

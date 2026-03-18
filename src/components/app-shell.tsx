@@ -8,7 +8,12 @@ import { SetupSequenceDialog } from "@/components/sudoku/setup-sequence-dialog";
 import { SetupProfileDialog } from "@/components/sudoku/setup-profile-dialog";
 import { ChatLayout } from "@/components/chat/chat-layout";
 import { AuthScreen } from "@/components/auth/auth-screen";
-import { requestNotificationPermission, showBrowserNotification } from "@/lib/notifications";
+import {
+  registerServiceWorker,
+  requestNotificationPermission,
+  subscribeToPush,
+  showBrowserNotification,
+} from "@/lib/notifications";
 
 type AppMode = "sudoku" | "chat";
 
@@ -19,6 +24,7 @@ export function AppShell() {
   const modeRef = useRef<AppMode>("sudoku");
   const lastNotifRef = useRef<number>(0);
   const heartbeat = useMutation(api.users.heartbeat);
+  const pushSubscribe = useMutation(api.push.subscribe);
 
   // Keep mode ref in sync
   useEffect(() => {
@@ -66,10 +72,21 @@ export function AppShell() {
     return () => clearInterval(interval);
   }, [heartbeat, user]);
 
-  // Request notification permission on mount
+  // Register service worker + push subscription when logged in
   useEffect(() => {
-    requestNotificationPermission();
-  }, []);
+    if (!user) return;
+    async function setupPush() {
+      const granted = await requestNotificationPermission();
+      if (!granted) return;
+      const registration = await registerServiceWorker();
+      if (!registration) return;
+      const sub = await subscribeToPush(registration);
+      if (sub) {
+        pushSubscribe(sub);
+      }
+    }
+    setupPush();
+  }, [user, pushSubscribe]);
 
   // Show browser notifications for new messages (disguised)
   useEffect(() => {
