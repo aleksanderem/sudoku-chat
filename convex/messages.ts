@@ -323,32 +323,28 @@ export const openViewLimited = mutation({
     if (!membership || membership.isRemoved) return null;
 
     if (msg.maxViews === undefined || msg.viewCount === undefined) {
-      // Not view-limited, return URL directly
       return msg.fileStorageId ? await ctx.storage.getUrl(msg.fileStorageId) : null;
     }
 
     if (msg.viewCount >= msg.maxViews) {
-      // All views used up
       return null;
     }
+
+    // Get URL BEFORE incrementing (file still exists)
+    const url = msg.fileStorageId ? await ctx.storage.getUrl(msg.fileStorageId) : null;
 
     // Increment view count
     const newCount = msg.viewCount + 1;
     await ctx.db.patch(args.messageId, { viewCount: newCount });
 
-    // If this was the last view, delete the file from storage
-    if (newCount >= msg.maxViews && msg.fileStorageId) {
-      await ctx.db.patch(args.messageId, {
-        fileStorageId: undefined,
-        content: "View-limited photo expired",
+    // If this was the last allowed view, schedule cleanup after 30s
+    // (gives the client time to display the image)
+    if (newCount >= msg.maxViews) {
+      await ctx.scheduler.runAfter(30_000, internal.cleanup.expireViewLimitedMessage, {
+        messageId: args.messageId,
       });
-      try {
-        await ctx.storage.delete(msg.fileStorageId);
-      } catch {
-        // Already deleted
-      }
     }
 
-    return msg.fileStorageId ? await ctx.storage.getUrl(msg.fileStorageId) : null;
+    return url;
   },
 });

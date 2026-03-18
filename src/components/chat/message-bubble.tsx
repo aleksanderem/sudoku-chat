@@ -119,25 +119,24 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
             {/* View-limited image */}
             {message.type === "image" && isViewLimited && (
               <div className="space-y-2">
-                {isExpired ? (
-                  <div className="flex items-center gap-2 py-3 justify-center">
-                    <EyeOff className="h-5 w-5 opacity-50" />
-                    <span className="text-sm opacity-70">Photo expired</span>
-                  </div>
-                ) : revealedUrl ? (
+                {revealedUrl ? (
                   <div className="relative">
                     <img
                       src={revealedUrl}
                       alt="View-limited"
                       className="rounded-lg max-w-full max-h-64 object-cover"
                       onLoad={() => {
-                        // Auto-hide after 5 seconds
                         setTimeout(() => setRevealedUrl(null), 5000);
                       }}
                     />
                     <div className="absolute top-1 right-1 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full">
                       Auto-hides in 5s
                     </div>
+                  </div>
+                ) : isExpired ? (
+                  <div className="flex items-center gap-2 py-3 justify-center">
+                    <EyeOff className="h-5 w-5 opacity-50" />
+                    <span className="text-sm opacity-70">Photo expired</span>
                   </div>
                 ) : (
                   <button

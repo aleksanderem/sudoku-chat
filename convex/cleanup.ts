@@ -1,3 +1,4 @@
+import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
 
 const BATCH_SIZE = 100;
@@ -43,6 +44,31 @@ export const purgeExpiredMessages = internalMutation({
 
     if (expired.length > 0) {
       console.log(`Purged ${expired.length} expired messages`);
+    }
+  },
+});
+
+// Clean up a view-limited message after the last view was shown
+export const expireViewLimitedMessage = internalMutation({
+  args: { messageId: v.id("messages") },
+  handler: async (ctx, args) => {
+    const msg = await ctx.db.get(args.messageId);
+    if (!msg || msg.isDeleted) return;
+
+    // Only expire if all views are used
+    if (msg.maxViews !== undefined && msg.viewCount !== undefined && msg.viewCount >= msg.maxViews) {
+      if (msg.fileStorageId) {
+        try {
+          await ctx.storage.delete(msg.fileStorageId);
+        } catch {
+          // Already deleted
+        }
+      }
+      await ctx.db.patch(args.messageId, {
+        fileStorageId: undefined,
+        content: "View-limited photo expired",
+        updatedAt: Date.now(),
+      });
     }
   },
 });
