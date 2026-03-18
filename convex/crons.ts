@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// Purge expired messages every 5 minutes
-crons.interval("purge expired messages", { minutes: 5 }, internal.cleanup.purgeExpiredMessages);
+// Purge expired messages every minute
+crons.interval("purge expired messages", { minutes: 1 }, internal.cleanup.purgeExpiredMessages);
 
 export default crons;

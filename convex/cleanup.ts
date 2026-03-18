@@ -9,21 +9,17 @@ export const purgeExpiredMessages = internalMutation({
   handler: async (ctx) => {
     const now = Date.now();
 
-    // Find messages past their expiry
+    // Use index range to skip undefined expiresAt and only get expired ones
+    // Index by_expiry sorts: undefined first, then by timestamp ascending
+    // gt(0) skips undefined, lte(now) gets only expired messages
     const expired = await ctx.db
       .query("messages")
-      .withIndex("by_expiry")
-      .filter((q) =>
-        q.and(
-          q.neq(q.field("expiresAt"), undefined),
-          q.lte(q.field("expiresAt"), now),
-          q.eq(q.field("isDeleted"), false)
-        )
-      )
+      .withIndex("by_expiry", (q) => q.gt("expiresAt", 0).lte("expiresAt", now))
+      .filter((q) => q.eq(q.field("isDeleted"), false))
       .take(BATCH_SIZE);
 
+    let purged = 0;
     for (const msg of expired) {
-      // Delete attached file from storage
       if (msg.fileStorageId) {
         try {
           await ctx.storage.delete(msg.fileStorageId);
@@ -32,7 +28,6 @@ export const purgeExpiredMessages = internalMutation({
         }
       }
 
-      // Soft-delete the message
       await ctx.db.patch(msg._id, {
         isDeleted: true,
         content: "",
@@ -40,10 +35,11 @@ export const purgeExpiredMessages = internalMutation({
         fileName: undefined,
         updatedAt: now,
       });
+      purged++;
     }
 
-    if (expired.length > 0) {
-      console.log(`Purged ${expired.length} expired messages`);
+    if (purged > 0) {
+      console.log(`Purged ${purged} expired messages`);
     }
   },
 });
@@ -55,7 +51,6 @@ export const expireViewLimitedMessage = internalMutation({
     const msg = await ctx.db.get(args.messageId);
     if (!msg || msg.isDeleted) return;
 
-    // Only expire if all views are used
     if (msg.maxViews !== undefined && msg.viewCount !== undefined && msg.viewCount >= msg.maxViews) {
       if (msg.fileStorageId) {
         try {
