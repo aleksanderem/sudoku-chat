@@ -33,8 +33,8 @@ export function SudokuControls({
   return (
     <div className="space-y-4">
       {/* Number pad */}
-      <div className="grid grid-cols-9 gap-1.5">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+      <div className="grid grid-cols-5 gap-1.5">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((n) => (
           <Button
             key={n}
             variant="outline"

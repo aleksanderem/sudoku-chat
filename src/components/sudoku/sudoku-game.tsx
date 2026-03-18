@@ -33,6 +33,32 @@ export function SudokuGame({ onEnterChat }: SudokuGameProps) {
         onCellEntry(row, col, value);
       }
       game.setCellValue(row, col, value);
+
+      // Auto-advance to next empty cell after entering a digit
+      if (value !== 0) {
+        advanceToNextEmpty(row, col);
+      }
+    }
+  }
+
+  function advanceToNextEmpty(fromRow: number, fromCol: number) {
+    // Scan from current position forward (reading order)
+    for (let i = fromRow * 9 + fromCol + 1; i < 81; i++) {
+      const r = Math.floor(i / 9);
+      const c = i % 9;
+      if (!game.board[r][c].isGiven && game.board[r][c].value === 0) {
+        game.setSelectedCell([r, c]);
+        return;
+      }
+    }
+    // Wrap around from the beginning
+    for (let i = 0; i < fromRow * 9 + fromCol; i++) {
+      const r = Math.floor(i / 9);
+      const c = i % 9;
+      if (!game.board[r][c].isGiven && game.board[r][c].value === 0) {
+        game.setSelectedCell([r, c]);
+        return;
+      }
     }
   }
 
