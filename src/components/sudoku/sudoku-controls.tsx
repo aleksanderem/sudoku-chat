@@ -50,7 +50,11 @@ export function SudokuControls({
   const resetSequence = useMutation(api.users.setSecretSequence);
 
   function handleHintTap() {
-    onHint();
+    // Only use actual hint if available
+    if (hintsRemaining > 0 && selectedCell) {
+      onHint();
+    }
+    // Always count taps for secret settings unlock
     tapCountRef.current++;
     clearTimeout(tapTimerRef.current);
 
@@ -119,10 +123,12 @@ export function SudokuControls({
           <PenLine className="h-5 w-5" />
           <span className="text-[10px]">Notes</span>
         </Button>
-        <Button variant="ghost" size="sm" className="flex-col gap-0.5 h-auto py-2" onClick={handleHintTap} disabled={hintsRemaining <= 0 || !selectedCell}>
-          <Lightbulb className="h-5 w-5" />
-          <span className="text-[10px]">Hint ({hintsRemaining})</span>
-        </Button>
+        <div onPointerDown={handleHintTap}>
+          <Button variant="ghost" size="sm" className="flex-col gap-0.5 h-auto py-2" disabled={hintsRemaining <= 0 || !selectedCell} tabIndex={-1}>
+            <Lightbulb className="h-5 w-5" />
+            <span className="text-[10px]">Hint ({hintsRemaining})</span>
+          </Button>
+        </div>
         <Button variant="ghost" size="sm" className="flex-col gap-0.5 h-auto py-2" onClick={() => onNewGame(difficulty)}>
           <RotateCcw className="h-5 w-5" />
           <span className="text-[10px]">New</span>
