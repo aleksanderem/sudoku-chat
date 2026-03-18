@@ -2,8 +2,10 @@ import { useState, useRef, useCallback } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@cvx/_generated/api";
 import type { Id } from "@cvx/_generated/dataModel";
+import { useExitPause } from "@/hooks/use-exit-pause";
 import { Button } from "@/components/ui/button";
-import { Send, Paperclip, Image, X } from "lucide-react";
+import { Send, Paperclip, Image, X, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface MessageInputProps {
   conversationId: Id<"conversations">;
@@ -19,6 +21,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { pauseExit, resumeExit } = useExitPause();
 
   const sendMessage = useMutation(api.messages.send);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
@@ -51,11 +54,22 @@ export function MessageInput({ conversationId }: MessageInputProps) {
       textareaRef.current?.focus();
     } catch (err) {
       console.error("Failed to send:", err);
+      toast.error("Failed to send message");
     }
   }, [text, pendingFile, conversationId, sendMessage]);
 
+  function handleFileButtonClick() {
+    // Pause exit triggers BEFORE opening file picker
+    // (picker causes window blur / visibilitychange on mobile)
+    pauseExit();
+    fileInputRef.current?.click();
+  }
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    // Resume exit triggers whether file was selected or cancelled
+    resumeExit();
+
     if (!file) return;
 
     setUploading(true);
@@ -66,10 +80,18 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         headers: { "Content-Type": file.type },
         body: file,
       });
-      const { storageId } = (await response.json()) as { storageId: Id<"_storage"> };
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const storageId = result.storageId as Id<"_storage">;
       setPendingFile({ name: file.name, type: file.type, storageId });
+      toast.success("File ready to send");
     } catch (err) {
       console.error("Upload failed:", err);
+      toast.error("Upload failed");
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -122,10 +144,14 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           variant="ghost"
           size="icon"
           className="flex-shrink-0 h-9 w-9"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={handleFileButtonClick}
           disabled={uploading}
         >
-          <Paperclip className="h-5 w-5" />
+          {uploading ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Paperclip className="h-5 w-5" />
+          )}
         </Button>
 
         {/* Text input */}

@@ -8,6 +8,7 @@ import { SetupSequenceDialog } from "@/components/sudoku/setup-sequence-dialog";
 import { SetupProfileDialog } from "@/components/sudoku/setup-profile-dialog";
 import { ChatLayout } from "@/components/chat/chat-layout";
 import { AuthScreen } from "@/components/auth/auth-screen";
+import { ExitPauseContext } from "@/hooks/use-exit-pause";
 import {
   registerServiceWorker,
   requestNotificationPermission,
@@ -42,13 +43,21 @@ export function AppShell() {
     setMode("chat");
   }, []);
 
+  // Pause exit triggers while native file picker is open
+  const exitPausedRef = useRef(false);
+  const pauseExit = useCallback(() => { exitPausedRef.current = true; }, []);
+  const resumeExit = useCallback(() => {
+    // Delay resume so the blur/visibility events from picker closing don't trigger exit
+    setTimeout(() => { exitPausedRef.current = false; }, 1000);
+  }, []);
+
   // Security: exit chat on visibility change, blur, escape
   useEffect(() => {
     function handleVisibility() {
-      if (document.hidden) exitChat();
+      if (document.hidden && !exitPausedRef.current) exitChat();
     }
     function handleBlur() {
-      exitChat();
+      if (!exitPausedRef.current) exitChat();
     }
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") exitChat();
@@ -138,7 +147,9 @@ export function AppShell() {
 
       {mode === "chat" && (
         <div className="mode-enter">
-          <ChatLayout />
+          <ExitPauseContext.Provider value={{ pauseExit, resumeExit }}>
+            <ChatLayout />
+          </ExitPauseContext.Provider>
         </div>
       )}
     </>
