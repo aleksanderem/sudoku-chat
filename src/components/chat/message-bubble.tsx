@@ -111,7 +111,7 @@ export function MessageBubble({ message, isOwn, onReply }: MessageBubbleProps) {
       if (touchRef.current.direction === "right" && swipeX >= SWIPE_THRESHOLD && onReply) {
         navigator.vibrate?.(10);
         onReply(message);
-      } else if (touchRef.current.direction === "left" && swipeX <= -SWIPE_THRESHOLD && isOwn) {
+      } else if (touchRef.current.direction === "left" && swipeX <= -SWIPE_THRESHOLD) {
         navigator.vibrate?.(10);
         setShowSwipeActions(true);
         setSwipeX(-ACTION_PANEL_WIDTH);
@@ -204,7 +204,7 @@ export function MessageBubble({ message, isOwn, onReply }: MessageBubbleProps) {
     ? Math.min(Math.abs(swipeX) / SWIPE_THRESHOLD, 1)
     : 0;
 
-  const hasLeftActions = isOwn;
+  const hasLeftActions = true;
 
   function renderBubbleContent() {
     return (
@@ -392,14 +392,12 @@ export function MessageBubble({ message, isOwn, onReply }: MessageBubbleProps) {
                 <Pencil className="h-4 w-4" />
               </button>
             )}
-            {isOwn && (
-              <button
-                className="flex items-center justify-center h-9 w-9 rounded-full bg-destructive/15 text-destructive active:scale-95 transition-transform"
-                onClick={handleDelete}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
+            <button
+              className="flex items-center justify-center h-9 w-9 rounded-full bg-destructive/15 text-destructive active:scale-95 transition-transform"
+              onClick={handleDelete}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           </div>
         )}
 

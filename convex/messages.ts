@@ -236,7 +236,15 @@ export const remove = mutation({
     const user = await requireUser(ctx);
     const message = await ctx.db.get(args.messageId);
     if (!message) throw new Error("Message not found");
-    if (message.senderId !== user._id) throw new Error("Can only delete own messages");
+
+    // Verify user is a member of the conversation
+    const membership = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_convAndUser", (q) =>
+        q.eq("conversationId", message.conversationId).eq("userId", user._id)
+      )
+      .unique();
+    if (!membership || membership.isRemoved) throw new Error("Not a member");
 
     await ctx.db.patch(args.messageId, {
       isDeleted: true,
