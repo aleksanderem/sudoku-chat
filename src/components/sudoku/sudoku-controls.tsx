@@ -2,13 +2,15 @@ import { useState, useRef } from "react";
 import { useMutation } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "@cvx/_generated/api";
-import { hashSequence } from "@/lib/crypto";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Undo2, Eraser, Lightbulb, PenLine, RotateCcw, LogOut, KeyRound, Share2 } from "lucide-react";
+import { Undo2, Eraser, Lightbulb, PenLine, RotateCcw, LogOut, KeyRound, Share2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import type { Difficulty } from "@/lib/sudoku/types";
+
+type SettingsView = "main" | "resetCode" | "changePwSend" | "changePwVerify";
 
 interface SudokuControlsProps {
   selectedCell: [number, number] | null;
@@ -22,6 +24,7 @@ interface SudokuControlsProps {
   onHint: () => void;
   onNewGame: (difficulty: Difficulty) => void;
   difficulty: Difficulty;
+  userEmail?: string;
 }
 
 const SECRET_TAP_COUNT = 8;
@@ -38,23 +41,29 @@ export function SudokuControls({
   onHint,
   onNewGame,
   difficulty,
+  userEmail,
 }: SudokuControlsProps) {
   const [showDevOptions, setShowDevOptions] = useState(false);
-  const [showResetForm, setShowResetForm] = useState(false);
-  const [resetCode, setResetCode] = useState("");
-  const [resetting, setResetting] = useState(false);
+  const [settingsView, setSettingsView] = useState<SettingsView>("main");
+  const [verifyCode, setVerifyCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const tapCountRef = useRef(0);
-  const tapTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const { signOut } = useAuthActions();
-  const verifySequence = useMutation(api.users.verifySecretSequence);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const { signIn, signOut } = useAuthActions();
   const resetSequence = useMutation(api.users.setSecretSequence);
 
+  function closeSettings() {
+    setShowDevOptions(false);
+    setSettingsView("main");
+    setVerifyCode("");
+    setNewPassword("");
+  }
+
   function handleHintTap() {
-    // Only use actual hint if available
     if (hintsRemaining > 0 && selectedCell) {
       onHint();
     }
-    // Always count taps for secret settings unlock
     tapCountRef.current++;
     clearTimeout(tapTimerRef.current);
 
@@ -69,26 +78,163 @@ export function SudokuControls({
     }
   }
 
-  async function handleResetCode() {
-    if (!resetCode.trim()) return;
-    setResetting(true);
+  async function handleResetSecretCode() {
+    setLoading(true);
     try {
-      const hash = await hashSequence(resetCode);
-      const ok = await verifySequence({ hash });
-      if (ok) {
-        await resetSequence({ hash: "", length: 0 });
-        toast.success("Code reset. Set a new one.");
-        setShowDevOptions(false);
-        setShowResetForm(false);
-        setResetCode("");
-      } else {
-        toast.error("Wrong code");
-      }
+      await resetSequence({ hash: "", length: 0 });
+      toast.success("Code reset. Set a new one.");
+      closeSettings();
     } catch {
-      toast.error("Verification failed");
+      toast.error("Reset failed");
     } finally {
-      setResetting(false);
+      setLoading(false);
     }
+  }
+
+  async function handleSendPasswordReset() {
+    if (!userEmail) {
+      toast.error("Email not available");
+      return;
+    }
+    setLoading(true);
+    try {
+      await signIn("password", { email: userEmail, flow: "reset" });
+      toast.success("Code sent to your email");
+      setSettingsView("changePwVerify");
+    } catch {
+      toast.error("Could not send reset code");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerifyPasswordReset() {
+    if (!userEmail || !verifyCode || !newPassword) return;
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    setLoading(true);
+    try {
+      await signIn("password", {
+        email: userEmail,
+        code: verifyCode,
+        newPassword,
+        flow: "reset-verification",
+      });
+      toast.success("Password changed!");
+      closeSettings();
+    } catch {
+      toast.error("Invalid code or code expired");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderSettingsContent() {
+    if (settingsView === "resetCode") {
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground text-center">
+            This will remove your current secret code. You'll need to set a new one to access chat.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setSettingsView("main")}>
+              Cancel
+            </Button>
+            <Button size="sm" className="flex-1 text-xs text-destructive" onClick={handleResetSecretCode} disabled={loading}>
+              Reset Code
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    if (settingsView === "changePwSend") {
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground text-center">
+            Send a verification code to <span className="font-medium text-foreground">{userEmail}</span>
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setSettingsView("main")}>
+              Cancel
+            </Button>
+            <Button size="sm" className="flex-1 text-xs" onClick={handleSendPasswordReset} disabled={loading}>
+              Send Code
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    if (settingsView === "changePwVerify") {
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground text-center">Check your email for the code</p>
+          <Input
+            type="text"
+            placeholder="Verification code"
+            value={verifyCode}
+            onChange={(e) => setVerifyCode(e.target.value)}
+            autoFocus
+            autoComplete="one-time-code"
+          />
+          <Input
+            type="password"
+            placeholder="New password (min 6 chars)"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            minLength={6}
+          />
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => { setSettingsView("main"); setVerifyCode(""); setNewPassword(""); }}>
+              Cancel
+            </Button>
+            <Button size="sm" className="flex-1 text-xs" onClick={handleVerifyPasswordReset} disabled={loading || !verifyCode || !newPassword}>
+              Change Password
+            </Button>
+          </div>
+          <button
+            type="button"
+            className="w-full text-[10px] text-muted-foreground hover:text-primary transition-colors"
+            onClick={handleSendPasswordReset}
+          >
+            Didn't get a code? Resend
+          </button>
+        </div>
+      );
+    }
+
+    // Main settings view
+    return (
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setSettingsView("resetCode")}>
+            <KeyRound className="h-3.5 w-3.5 mr-1" />
+            Reset Code
+          </Button>
+          <Button variant="outline" size="sm" className="flex-1 text-xs text-destructive" onClick={() => void signOut()}>
+            <LogOut className="h-3.5 w-3.5 mr-1" />
+            Log Out
+          </Button>
+        </div>
+        {userEmail && (
+          <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setSettingsView("changePwSend")}>
+            <Lock className="h-3.5 w-3.5 mr-1" />
+            Change Password
+          </Button>
+        )}
+        <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => {
+          const url = `${window.location.origin}/play?game`;
+          navigator.clipboard.writeText(url);
+          toast.success("Game link copied! Share it with friends.");
+        }}>
+          <Share2 className="h-3.5 w-3.5 mr-1" />
+          Share Game (no chat)
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -139,50 +285,8 @@ export function SudokuControls({
       {showDevOptions && (
         <div className="rounded-lg border border-dashed border-muted-foreground/30 p-3 space-y-2 animate-in fade-in">
           <p className="text-xs text-muted-foreground text-center">Settings</p>
-
-          {showResetForm ? (
-            <div className="space-y-2">
-              <Input
-                type="text"
-                inputMode="numeric"
-                placeholder="Enter current code"
-                value={resetCode}
-                onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ""))}
-                autoFocus
-              />
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => { setShowResetForm(false); setResetCode(""); }}>
-                  Cancel
-                </Button>
-                <Button size="sm" className="flex-1 text-xs" onClick={handleResetCode} disabled={resetting || !resetCode}>
-                  Confirm Reset
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setShowResetForm(true)}>
-                  <KeyRound className="h-3.5 w-3.5 mr-1" />
-                  Reset Code
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1 text-xs text-destructive" onClick={() => void signOut()}>
-                  <LogOut className="h-3.5 w-3.5 mr-1" />
-                  Log Out
-                </Button>
-              </div>
-              <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => {
-                const url = `${window.location.origin}/play?game`;
-                navigator.clipboard.writeText(url);
-                toast.success("Game link copied! Share it with friends.");
-              }}>
-                <Share2 className="h-3.5 w-3.5 mr-1" />
-                Share Game (no chat)
-              </Button>
-            </div>
-          )}
-
-          <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground" onClick={() => { setShowDevOptions(false); setShowResetForm(false); setResetCode(""); }}>
+          {renderSettingsContent()}
+          <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground" onClick={closeSettings}>
             Close
           </Button>
         </div>

@@ -147,10 +147,17 @@ export function useSudokuGame() {
     setTimer(0);
     setIsRunning(true);
     setIsComplete(false);
-    setSelectedCell(null);
     setNotesMode(false);
     setHintsRemaining(3);
     setHistory([]);
+
+    let firstEmpty: [number, number] | null = null;
+    for (let r = 0; r < 9 && !firstEmpty; r++) {
+      for (let c = 0; c < 9 && !firstEmpty; c++) {
+        if (puzzle[r][c] === 0) firstEmpty = [r, c];
+      }
+    }
+    setSelectedCell(firstEmpty);
   }, []);
 
   const setCellValue = useCallback(

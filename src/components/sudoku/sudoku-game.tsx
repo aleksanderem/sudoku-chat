@@ -128,6 +128,7 @@ export function SudokuGame({ onEnterChat }: SudokuGameProps) {
               onHint={game.useHint}
               onNewGame={game.newGame}
               difficulty={game.difficulty}
+              userEmail={user?.email}
             />
           </div>
         </>

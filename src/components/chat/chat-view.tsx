@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@cvx/_generated/api";
 import type { Id } from "@cvx/_generated/dataModel";
 import { MessageBubble } from "./message-bubble";
+import type { ChatMessage } from "./message-bubble";
 import { MessageInput } from "./message-input";
 import { TypingIndicator } from "./typing-indicator";
 import { ArrowLeft, Users, Timer, ChevronDown } from "lucide-react";
@@ -38,6 +39,23 @@ export function ChatView({ conversationId, onBack }: ChatViewProps) {
   const setTtl = useMutation(api.conversations.setMessageTtl);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showTtlPicker, setShowTtlPicker] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{
+    _id: Id<"messages">;
+    content: string;
+    senderName: string;
+  } | null>(null);
+
+  const handleReply = useCallback((msg: ChatMessage) => {
+    setReplyingTo({
+      _id: msg._id,
+      content: msg.type === "text" ? msg.content : msg.type === "image" ? "Photo" : msg.fileName ?? "File",
+      senderName: msg.senderName,
+    });
+  }, []);
+
+  const handleCancelReply = useCallback(() => {
+    setReplyingTo(null);
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -48,6 +66,11 @@ export function ChatView({ conversationId, onBack }: ChatViewProps) {
   useEffect(() => {
     markRead({ conversationId });
   }, [conversationId, markRead, messages?.length]);
+
+  // Clear reply when switching conversations
+  useEffect(() => {
+    setReplyingTo(null);
+  }, [conversationId]);
 
   const displayName =
     conversation?.type === "direct"
@@ -162,6 +185,7 @@ export function ChatView({ conversationId, onBack }: ChatViewProps) {
               message={msg}
               isOwn={msg.senderId === user?._id}
               conversationId={conversationId}
+              onReply={handleReply}
             />
           ))
         )}
@@ -169,7 +193,11 @@ export function ChatView({ conversationId, onBack }: ChatViewProps) {
         <TypingIndicator conversationId={conversationId} />
       </div>
 
-      <MessageInput conversationId={conversationId} />
+      <MessageInput
+        conversationId={conversationId}
+        replyTo={replyingTo}
+        onCancelReply={handleCancelReply}
+      />
     </div>
   );
 }
